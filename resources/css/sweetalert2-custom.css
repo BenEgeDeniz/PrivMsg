@@ -1,0 +1,62 @@
+/**
+ * SweetAlert2 custom styling for toast notifications
+ * Dark theme compatible with our application's color scheme
+ */
+
+/* Custom theme - dark toasts */
+.swal2-popup.swal2-toast {
+  background-color: #1f2937 !important; /* dark gray-800 background */
+  border: 1px solid #374151 !important; /* gray-700 border */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Toast title text color */
+.swal2-popup.swal2-toast .swal2-title {
+  color: #f3f4f6 !important; /* text-gray-100 */
+  font-size: 0.875rem !important;
+}
+
+/* Success color */
+.swal2-popup.swal2-toast.swal2-icon-success {
+  border-left: 4px solid #10b981 !important; /* emerald-500 */
+}
+
+/* Error color */
+.swal2-popup.swal2-toast.swal2-icon-error {
+  border-left: 4px solid #ef4444 !important; /* red-500 */
+}
+
+/* Warning color */
+.swal2-popup.swal2-toast.swal2-icon-warning {
+  border-left: 4px solid #f59e0b !important; /* amber-500 */
+}
+
+/* Info color */
+.swal2-popup.swal2-toast.swal2-icon-info {
+  border-left: 4px solid #3b82f6 !important; /* blue-500 */
+}
+
+/* Success icon */
+.swal2-popup.swal2-toast .swal2-success-line-tip,
+.swal2-popup.swal2-toast .swal2-success-line-long {
+  background-color: #10b981 !important; /* emerald-500 */
+}
+.swal2-popup.swal2-toast .swal2-success-ring {
+  border-color: rgba(16, 185, 129, 0.3) !important; /* emerald-500 with opacity */
+}
+
+/* Error icon */
+.swal2-popup.swal2-toast .swal2-x-mark-line-left,
+.swal2-popup.swal2-toast .swal2-x-mark-line-right {
+  background-color: #ef4444 !important; /* red-500 */
+}
+
+/* Timer progress bar */
+.swal2-popup.swal2-toast .swal2-timer-progress-bar {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Make sure our toasts are on top of other UI elements */
+.swal2-container {
+  z-index: 9999 !important;
+}

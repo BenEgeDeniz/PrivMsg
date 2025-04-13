@@ -1,0 +1,27 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "devDependencies": {
+        "@simplewebauthn/browser": "^13.1.0",
+        "@tailwindcss/vite": "^4.0.0",
+        "axios": "^1.8.2",
+        "concurrently": "^9.0.1",
+        "laravel-vite-plugin": "^1.2.0",
+        "tailwindcss": "^4.0.0",
+        "vite": "^6.0.11"
+    },
+    "dependencies": {
+        "@vitejs/plugin-vue": "^5.2.3",
+        "js-crypto-rsa": "^1.0.7",
+        "js-crypto-utils": "^1.0.7",
+        "lodash": "^4.17.21",
+        "sweetalert2": "^11.17.2",
+        "vue": "^3.5.13",
+        "vue-router": "^4.5.0",
+        "vuex": "^4.1.0"
+    }
+}
