@@ -65,6 +65,6 @@ PrivMsg by BenEgeDeniz is marked with CC0 1.0
 
 ## Contact
 
-Ege Deniz Kaçar - ege@benegedeniz.com
+ege@benegedeniz.com
 
 Project Link: [https://github.com/BenEgeDeniz/PrivMsg](https://github.com/BenEgeDeniz/PrivMsg)
