@@ -75,9 +75,6 @@ Route::middleware(['auth'])->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::post('/push-notifications/subscribe', [PushNotificationController::class, 'subscribe']);
-    Route::post('/push-notifications/unsubscribe', [PushNotificationController::class, 'unsubscribe']);
-    
     // Messages and Conversations
     Route::post('/api/messages', [MessageController::class, 'send']);
     Route::get('/api/messages', [MessageController::class, 'index']);
