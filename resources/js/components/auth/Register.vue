@@ -38,23 +38,35 @@
       <form @submit.prevent="registerUser" class="space-y-6">
         <div>
           <label for="username" class="block text-sm font-medium text-gray-300">Username</label>
-          <div class="mt-1 relative rounded-md shadow-sm">
+          <!-- Use items-stretch to make input and button the same height -->
+          <div class="mt-1 relative rounded-md shadow-sm flex items-stretch">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
               </svg>
             </div>
-            <input 
-              id="username" 
-              type="text" 
-              v-model="username" 
-              required 
-              class="pl-10 mt-1 block w-full px-3 py-2 border border-gray-700 rounded-md shadow-sm bg-gray-800 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            <input
+              id="username"
+              type="text"
+              v-model="username"
+              required
+              class="pl-10 block w-full px-3 py-2 border border-gray-700 rounded-l-md shadow-sm bg-gray-800 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               autocomplete="username"
             />
+            <button
+              type="button"
+              @click="generateRandomUsername"
+              class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-700 rounded-r-md bg-gray-700 text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              title="Generate Random Username"
+            >
+              <!-- Simpler refresh SVG icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2A8.001 8.001 0 0019.418 15m0 0H15" />
+              </svg>
+            </button>
           </div>
         </div>
-        
+
         <div>
           <label for="password" class="block text-sm font-medium text-gray-300">Password</label>
           <div class="mt-1 relative rounded-md shadow-sm">
@@ -223,6 +235,11 @@
 import cryptoService from '../../services/CryptoService';
 import toastService from '../../services/ToastService';
 
+// Add lists for random username generation
+const adjectives = ["Quick", "Lazy", "Sleepy", "Noisy", "Hungry", "Brave", "Calm", "Eager", "Fancy", "Happy", "Jolly", "Kind", "Lively", "Nice", "Proud", "Silly", "Witty", "Zealous"];
+const nouns = ["Fox", "Dog", "Cat", "Bear", "Lion", "Tiger", "Wolf", "Puma", "Hawk", "Eagle", "Pigeon", "Duck", "Goose", "Owl", "Crow", "Raven", "Finch", "Sparrow"];
+
+
 export default {
   data() {
     return {
@@ -240,6 +257,13 @@ export default {
     };
   },
   methods: {
+    generateRandomUsername() {
+      const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+      const randomNumber = Math.floor(100 + Math.random() * 900); // Generates a 3-digit number
+      this.username = `${randomAdjective}${randomNoun}${randomNumber}`;
+    },
+
     async registerUser() {
       this.errors = [];
       
@@ -302,7 +326,7 @@ export default {
         this.isRegistering = false;
       }
     },
-    
+
     async generateEncryptionKeys() {
       try {
         // Generate a new key pair
@@ -353,7 +377,7 @@ export default {
         this.generatingKeys = false;
       }
     },
-    
+
     copyPrivateKey() {
       navigator.clipboard.writeText(this.privateKeyBackup)
         .then(() => {
@@ -363,7 +387,7 @@ export default {
           console.error('Could not copy text: ', err);
         });
     },
-    
+
     completeRegistration() {
       // Mark registration as complete
       this.showBackupModal = false;
