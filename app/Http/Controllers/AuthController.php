@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\ProofOfWorkController;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,13 +24,37 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $validator = Validator::make($request->all(), [
             'username' => ['required', 'string'],
             'password' => ['required', 'string'],
+            'pow_token' => ['required', 'string'],
         ]);
+
+        if ($validator->fails()) {
+            return $request->expectsJson()
+                ? response()->json(['errors' => $validator->errors()], 422)
+                : back()->withErrors($validator)->withInput($request->except('password'));
+        }
+
+        // Verify the proof of work token
+        $powToken = $request->input('pow_token');
+        if (!ProofOfWorkController::isTokenValid($powToken)) {
+            return $request->expectsJson()
+                ? response()->json(['errors' => ['pow_token' => 'Invalid or expired CAPTCHA verification. Please try again.']], 422)
+                : back()->withErrors(['pow_token' => 'Invalid or expired CAPTCHA verification. Please try again.'])
+                    ->withInput($request->except('password'));
+        }
+        
+        $credentials = [
+            'username' => $request->username,
+            'password' => $request->password,
+        ];
 
         if (Auth::attempt($credentials, $request->remember)) {
             $request->session()->regenerate();
+            
+            // Invalidate the token after successful use
+            ProofOfWorkController::invalidateToken($powToken);
             
             return $request->expectsJson()
                 ? response()->json(['success' => true])
@@ -59,6 +84,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'username' => ['required', 'string', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'pow_token' => ['required', 'string'],
         ]);
 
         if ($validator->fails()) {
@@ -66,11 +92,23 @@ class AuthController extends Controller
                 ? response()->json(['errors' => $validator->errors()], 422)
                 : back()->withErrors($validator)->withInput($request->except('password', 'password_confirmation'));
         }
+        
+        // Verify the proof of work token
+        $powToken = $request->input('pow_token');
+        if (!ProofOfWorkController::isTokenValid($powToken)) {
+            return $request->expectsJson()
+                ? response()->json(['errors' => ['pow_token' => 'Invalid or expired CAPTCHA verification. Please try again.']], 422)
+                : back()->withErrors(['pow_token' => 'Invalid or expired CAPTCHA verification. Please try again.'])
+                    ->withInput($request->except('password', 'password_confirmation'));
+        }
 
         $user = User::create([
             'username' => $request->username,
             'password' => Hash::make($request->password),
         ]);
+        
+        // Invalidate the token after successful use
+        ProofOfWorkController::invalidateToken($powToken);
 
         Auth::login($user);
 

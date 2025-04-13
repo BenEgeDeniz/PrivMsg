@@ -67,11 +67,51 @@
         </div>
       </div>
       
+      <!-- Proof of Work CAPTCHA -->
+      <div class="bg-gray-800 bg-opacity-50 p-4 rounded-md border border-gray-700">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-medium text-gray-300">Human Verification</h3>
+          <div class="text-xs text-gray-400" v-if="powChallenge && !powComplete">
+            Solving...
+          </div>
+          <div class="text-xs text-green-400" v-if="powComplete">
+            <div class="flex items-center">
+              <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
+              Verification Complete
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="!powChallenge && !powComplete" class="text-center">
+          <p class="text-xs text-gray-400 mb-3">To protect your account from automated attacks, please complete this verification.</p>
+          <button 
+            type="button" 
+            @click="fetchPowChallenge().then(() => solvePowChallenge())"
+            class="w-full py-2 px-3 border border-transparent text-xs rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 focus:ring-offset-gray-800">
+            Start Verification
+          </button>
+        </div>
+        
+        <div v-else-if="powSolving && !powComplete" class="text-center">
+          <p class="text-xs text-gray-400 mb-3">Please wait while we verify your browser. This process should take a few seconds...</p>
+          <div class="w-full bg-gray-700 rounded-full h-2.5 mb-2 overflow-hidden">
+            <div class="bg-blue-600 h-2.5 rounded-full" :style="{ width: (powProgress * 100) + '%' }"></div>
+          </div>
+          <p class="text-xs text-gray-500">{{Math.round(powProgress * 100)}}% complete</p>
+        </div>
+        
+        <div v-else-if="powComplete" class="text-xs text-gray-400">
+          <p>Verification successful! You can now sign in.</p>
+        </div>
+      </div>
+      
       <div>
         <button 
           type="submit" 
           class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-md transition-all duration-150 ease-in-out"
-          :disabled="isLoading"
+          :disabled="isLoading || !powComplete"
         >
           <span class="absolute left-0 inset-y-0 flex items-center pl-3">
             <svg class="h-5 w-5 text-blue-400 group-hover:text-blue-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -114,13 +154,214 @@ export default {
         remember: false
       },
       isLoading: false,
-      errorMessage: ''
+      errorMessage: '',
+      // Proof of Work CAPTCHA data
+      powChallenge: null,
+      powNoncePrefix: null,
+      powDifficulty: 4,
+      powSolving: false,
+      powComplete: false,
+      powVerificationToken: null,
+      powProgress: 0,
+      powWorker: null
     };
   },
   methods: {
+    // Proof of Work CAPTCHA methods
+    async fetchPowChallenge() {
+      try {
+        console.log('[PoW] Fetching challenge from server...');
+        const response = await fetch('/api/pow/challenge');
+        if (!response.ok) {
+          throw new Error('Failed to fetch CAPTCHA challenge');
+        }
+        
+        const data = await response.json();
+        this.powChallenge = data.challenge;
+        this.powNoncePrefix = data.noncePrefix;
+        
+        // Enforce a reasonable difficulty for mobile devices (max 2)
+        // Check if we're likely on a mobile device based on screen size
+        const isMobileDevice = window.innerWidth < 768;
+        this.powDifficulty = isMobileDevice ? Math.min(2, data.difficulty) : data.difficulty;
+        
+        console.log('[PoW] Challenge received:', {
+          challenge: this.powChallenge,
+          noncePrefix: this.powNoncePrefix,
+          serverDifficulty: data.difficulty,
+          actualDifficulty: this.powDifficulty, 
+          isMobileDevice: isMobileDevice,
+          screenWidth: window.innerWidth
+        });
+        
+        this.powComplete = false;
+        this.powProgress = 0;
+        this.powVerificationToken = null;
+        
+        return data;
+      } catch (error) {
+        this.errorMessage = 'Failed to fetch CAPTCHA challenge. Please try again.';
+        return null;
+      }
+    },
+    
+    async solvePowChallenge() {
+      if (!this.powChallenge || !this.powNoncePrefix) {
+        await this.fetchPowChallenge();
+      }
+      
+      if (!this.powChallenge || !this.powNoncePrefix) {
+        return;
+      }
+      
+      this.powSolving = true;
+      
+      // Create a Web Worker to solve the proof of work without blocking the UI
+      const workerCode = `
+        // SHA-256 hash function using Web Crypto API
+        async function sha256(message) {
+          // Convert string to an ArrayBuffer
+          const encoder = new TextEncoder();
+          const data = encoder.encode(message);
+          
+          // Hash the message using Web Crypto API
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          
+          // Convert ArrayBuffer to hex string
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          
+          return hashHex;
+        }
+        
+        self.onmessage = async function(e) {
+          const { challenge, noncePrefix, difficulty } = e.data;
+          const requiredPrefix = '0'.repeat(difficulty);
+          
+          let counter = 0;
+          const maxAttempts = 10000000; // Limit to prevent infinite loops
+          let nonce = noncePrefix;
+          
+          while (counter < maxAttempts) {
+            // Try incremental suffixes
+            nonce = noncePrefix + counter.toString(36);
+            
+            // Calculate hash
+            const hash = await sha256(challenge + nonce);
+            
+            // Check if it meets the difficulty requirement
+            if (hash.substring(0, difficulty) === requiredPrefix) {
+              self.postMessage({ success: true, nonce, hash });
+              return;
+            }
+            
+            // Report progress periodically
+            if (counter % 10000 === 0) {
+              self.postMessage({ 
+                success: false, 
+                progress: Math.min(counter / 1000000, 0.95) // Cap at 95%
+              });
+            }
+            
+            counter++;
+          }
+          
+          // If we reach here, we failed to find a solution
+          self.postMessage({ success: false, error: 'Failed to solve the CAPTCHA challenge' });
+        };
+      `;
+      
+      // Create a Blob containing the worker code
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+      
+      this.powWorker = new Worker(workerUrl);
+      
+      return new Promise((resolve, reject) => {
+        this.powWorker.onmessage = async (e) => {
+          const { success, nonce, hash, progress, error } = e.data;
+          
+          if (progress !== undefined) {
+            this.powProgress = progress;
+            return;
+          }
+          
+          if (error) {
+            this.powSolving = false;
+            this.errorMessage = error;
+            this.powWorker.terminate();
+            this.powWorker = null;
+            reject(error);
+            return;
+          }
+          
+          if (success) {
+            try {
+              // Verify the solution with the server
+              const verifyResponse = await fetch('/api/pow/verify', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                  challenge: this.powChallenge,
+                  nonce: nonce
+                })
+              });
+              
+              const verifyData = await verifyResponse.json();
+              
+              if (!verifyResponse.ok || !verifyData.valid) {
+                throw new Error(verifyData.message || 'Failed to verify CAPTCHA solution');
+              }
+              
+              // Store the verification token
+              this.powVerificationToken = verifyData.verification_token;
+              this.powComplete = true;
+              this.powSolving = false;
+              this.powProgress = 1; // 100%
+              
+              // Clean up
+              this.powWorker.terminate();
+              this.powWorker = null;
+              URL.revokeObjectURL(workerUrl);
+              
+              resolve(true);
+            } catch (error) {
+              this.powSolving = false;
+              this.errorMessage = error.message || 'Failed to verify CAPTCHA solution';
+              
+              // Clean up
+              this.powWorker.terminate();
+              this.powWorker = null;
+              URL.revokeObjectURL(workerUrl);
+              
+              reject(error);
+            }
+          }
+        };
+        
+        // Start the worker
+        this.powWorker.postMessage({
+          challenge: this.powChallenge,
+          noncePrefix: this.powNoncePrefix,
+          difficulty: this.powDifficulty
+        });
+      });
+    },
+    
     async handleSubmit() {
       this.isLoading = true;
       this.errorMessage = '';
+      
+      // Verify proof of work CAPTCHA
+      if (!this.powVerificationToken) {
+        this.errorMessage = 'Please complete the verification first.';
+        this.isLoading = false;
+        return;
+      }
       
       try {
         const response = await fetch('/login', {
@@ -133,7 +374,8 @@ export default {
           body: JSON.stringify({
             username: this.form.username,
             password: this.form.password,
-            remember: this.form.remember ? 1 : 0
+            remember: this.form.remember ? 1 : 0,
+            pow_token: this.powVerificationToken
           })
         });
         

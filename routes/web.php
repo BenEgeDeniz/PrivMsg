@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\KeyPairController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MessagingViewController;
+use App\Http\Controllers\ProofOfWorkController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,12 @@ Route::get('/terms', function () {
 Route::get('/privacy', function () {
     return view('static.privacy');
 })->name('privacy');
+
+// Proof of Work CAPTCHA routes (public)
+Route::prefix('api/pow')->group(function () {
+    Route::get('/challenge', [ProofOfWorkController::class, 'generateChallenge']);
+    Route::post('/verify', [ProofOfWorkController::class, 'verifyChallenge']);
+});
 
 // Guest routes (only accessible when not logged in)
 Route::middleware('guest')->group(function () {
